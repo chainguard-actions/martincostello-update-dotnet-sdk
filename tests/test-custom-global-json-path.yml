@@ -1,0 +1,56 @@
+name: Test custom global.json path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json at a custom path with the latest 2.1 SDK version (EOL, frozen)
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/src"
+          printf '{"sdk":{"version":"2.1.818","rollForward":"latestFeature"}}' > "$GITHUB_WORKSPACE/src/global.json"
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: ./src/global.json
+          channel: '2.1'
+          generate-step-summary: 'false'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Assert sdk-version output is set
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: expected sdk-version to be non-empty"
+            exit 1
+          fi
+          echo "PASS: sdk-version=$SDK_VERSION"
+
+      - name: Assert sdk-updated output is a boolean string
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$SDK_UPDATED" != "true" ] && [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: expected sdk-updated to be 'true' or 'false', got '$SDK_UPDATED'"
+            exit 1
+          fi
+          echo "PASS: sdk-updated=$SDK_UPDATED"
+
+      - name: Assert sdk-updated is false (2.1.818 is the final EOL version)
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: expected sdk-updated to be 'false' since 2.1.818 is the final EOL version"
+            exit 1
+          fi
+          echo "PASS: sdk-updated=false"

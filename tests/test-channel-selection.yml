@@ -1,0 +1,61 @@
+name: Test channel selection
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up isolated git repo with global.json for channel 8.0
+        run: |
+          mkdir -p /tmp/test-repo-channel
+          cd /tmp/test-repo-channel
+          git init
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          cat > global.json << 'EOF'
+          {
+            "sdk": {
+              "version": "8.0.100"
+            }
+          }
+          EOF
+          git add global.json
+          git commit -m "Initial commit"
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: /tmp/test-repo-channel/global.json
+          channel: '8.0'
+          dry-run: 'true'
+          generate-step-summary: 'false'
+          repo: ''
+
+      - name: Assert sdk-version output starts with 8.0
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: expected sdk-version output to be non-empty"
+            exit 1
+          fi
+          if [[ "$SDK_VERSION" != 8.0.* ]]; then
+            echo "FAIL: expected sdk-version to start with '8.0.', got '$SDK_VERSION'"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert aspnetcore-version output is set
+        env:
+          ASPNETCORE_VERSION: ${{ steps.action.outputs.aspnetcore-version }}
+        run: |
+          echo "aspnetcore-version: $ASPNETCORE_VERSION"
+          if [ -z "$ASPNETCORE_VERSION" ]; then
+            echo "FAIL: expected aspnetcore-version output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"

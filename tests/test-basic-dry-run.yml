@@ -1,0 +1,55 @@
+name: Test basic dry-run
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Configure git safe directory
+        run: git config --global safe.directory '*'
+
+      - name: Set up isolated git repo for test
+        run: |
+          mkdir -p /tmp/test-repo
+          cd /tmp/test-repo
+          git init
+          git symbolic-ref HEAD refs/heads/main
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          printf '{\n  "sdk": {\n    "version": "8.0.100"\n  }\n}\n' > global.json
+          git add global.json
+          git commit -m "Initial commit"
+          git remote add origin https://github.com/martincostello/update-dotnet-sdk.git
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: /tmp/test-repo/global.json
+          dry-run: 'true'
+          generate-step-summary: 'false'
+          repo: ''
+
+      - name: Assert sdk-version output is set
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: expected sdk-version to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert sdk-updated output is set
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ -z "$SDK_UPDATED" ]; then
+            echo "FAIL: expected sdk-updated to be non-empty"
+            exit 1
+          fi
+          echo "PASS"

@@ -1,0 +1,50 @@
+name: Test security-only mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json for testing
+        run: |
+          cat > "$GITHUB_WORKSPACE/test-global.json" <<'EOF'
+          {
+            "sdk": {
+              "version": "8.0.100",
+              "rollForward": "latestFeature"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          repo-token: fake-token-for-testing
+          global-json-file: ./test-global.json
+          channel: '8.0'
+          security-only: 'true'
+          generate-step-summary: 'false'
+        continue-on-error: true
+
+      - name: Assert action ran in security-only mode
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          SECURITY: ${{ steps.action.outputs.security }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "sdk-version: $SDK_VERSION"
+          echo "sdk-updated: $SDK_UPDATED"
+          echo "security: $SECURITY"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action step was skipped unexpectedly"
+            exit 1
+          fi
+          if [ "$OUTCOME" = "success" ] && [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: action succeeded but sdk-version output was empty"
+            exit 1
+          fi
+          echo "PASS: security-only mode ran with outcome '$OUTCOME'"

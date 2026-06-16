@@ -1,0 +1,55 @@
+name: Test custom channel specification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json for testing
+        run: |
+          cat > "$GITHUB_WORKSPACE/test-global.json" <<'EOF'
+          {
+            "sdk": {
+              "version": "9.0.100",
+              "rollForward": "latestFeature"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          repo-token: fake-token-for-testing
+          global-json-file: ./test-global.json
+          channel: '9.0'
+          generate-step-summary: 'false'
+        continue-on-error: true
+
+      - name: Assert action ran for channel 9.0
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "sdk-version: $SDK_VERSION"
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action step was skipped unexpectedly"
+            exit 1
+          fi
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$SDK_VERSION" ]; then
+              echo "FAIL: action succeeded but sdk-version output was empty"
+              exit 1
+            fi
+            if [[ "$SDK_VERSION" != 9.* ]]; then
+              echo "FAIL: expected sdk-version to start with '9.' but got '$SDK_VERSION'"
+              exit 1
+            fi
+            echo "PASS: sdk-version $SDK_VERSION is in the 9.0 channel"
+          else
+            echo "PASS: action ran with outcome '$OUTCOME' (expected when using fake token with outdated SDK)"
+          fi

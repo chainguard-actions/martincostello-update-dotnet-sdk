@@ -1,0 +1,78 @@
+name: Test custom options
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: fake-token-for-testing
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json with up-to-date SDK version in custom location
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/custom/path"
+          cat > "$GITHUB_WORKSPACE/custom/path/global.json" <<'EOF'
+          {
+            "sdk": {
+              "version": "7.0.410"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: ${{ github.workspace }}/custom/path/global.json
+          channel: '7.0'
+          branch-name: 'update-dotnet-sdk-test'
+          commit-message-prefix: '[test]'
+          draft: 'false'
+          generate-step-summary: 'false'
+          security-only: 'false'
+          close-superseded: 'false'
+
+      - name: Assert sdk-version output is set
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: expected sdk-version output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: sdk-version=$SDK_VERSION"
+
+      - name: Assert sdk-updated output is false
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: expected sdk-updated to be 'false', got '$SDK_UPDATED'"
+            exit 1
+          fi
+          echo "PASS: sdk-updated=$SDK_UPDATED"
+
+      - name: Assert sdk-version starts with 7.0
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [[ "$SDK_VERSION" != 7.0.* ]]; then
+            echo "FAIL: expected sdk-version to start with '7.0', got '$SDK_VERSION'"
+            exit 1
+          fi
+          echo "PASS: sdk-version=$SDK_VERSION is in channel 7.0"
+
+      - name: Assert pull-requests-closed output is empty array
+        env:
+          PRS_CLOSED: ${{ steps.action.outputs.pull-requests-closed }}
+        run: |
+          echo "pull-requests-closed: $PRS_CLOSED"
+          if [ "$PRS_CLOSED" != "[]" ]; then
+            echo "FAIL: expected pull-requests-closed to be '[]', got '$PRS_CLOSED'"
+            exit 1
+          fi
+          echo "PASS: pull-requests-closed=$PRS_CLOSED"

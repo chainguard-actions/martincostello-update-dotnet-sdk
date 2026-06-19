@@ -1,0 +1,62 @@
+name: Test basic usage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: fake-token-for-testing
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json with up-to-date SDK version
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-repo"
+          cat > "$GITHUB_WORKSPACE/test-repo/global.json" <<'EOF'
+          {
+            "sdk": {
+              "version": "7.0.410"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: ${{ github.workspace }}/test-repo/global.json
+          channel: '7.0'
+          generate-step-summary: 'false'
+
+      - name: Assert sdk-version output is set
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: expected sdk-version output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: sdk-version=$SDK_VERSION"
+
+      - name: Assert sdk-updated output is false
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: expected sdk-updated to be 'false', got '$SDK_UPDATED'"
+            exit 1
+          fi
+          echo "PASS: sdk-updated=$SDK_UPDATED"
+
+      - name: Assert sdk-version starts with 7.0
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [[ "$SDK_VERSION" != 7.0.* ]]; then
+            echo "FAIL: expected sdk-version to start with '7.0', got '$SDK_VERSION'"
+            exit 1
+          fi
+          echo "PASS: sdk-version=$SDK_VERSION is in channel 7.0"

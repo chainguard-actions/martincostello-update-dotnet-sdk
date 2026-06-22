@@ -1,0 +1,80 @@
+{
+  "name": "update-dotnet-sdk",
+  "version": "6.1.2",
+  "private": true,
+  "description": "A GitHub Action that updates the .NET SDK.",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write eslint.config.mjs src/**/*.ts tests/**/*.ts",
+    "format-check": "prettier --check eslint.config.mjs src/**/*.ts tests/**/*.ts",
+    "generate": "npm run build && npm run package",
+    "lint": "eslint src/**/*.ts --fix",
+    "package": "esbuild lib/main.js --bundle --minify --outdir=dist --packages=bundle --platform=node --sourcemap --target=node24.0.0",
+    "test": "vitest run",
+    "publish": "npm run format && npm run lint && npm run generate",
+    "all": "npm run publish && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/martincostello/update-dotnet-sdk.git"
+  },
+  "keywords": [
+    "actions",
+    "dotnet",
+    "github",
+    "sdk"
+  ],
+  "author": {
+    "name": "Martin Costello",
+    "url": "https://martincostello.com/"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/martincostello/update-dotnet-sdk/issues"
+  },
+  "homepage": "https://github.com/martincostello/update-dotnet-sdk#readme",
+  "dependencies": {
+    "@actions/core": "3.0.1",
+    "@actions/exec": "3.0.0",
+    "@actions/github": "9.1.1",
+    "@actions/io": "3.0.2",
+    "@octokit/plugin-paginate-rest": "14.0.0",
+    "@octokit/plugin-rest-endpoint-methods": "17.0.0",
+    "undici": "8.5.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.3.5",
+    "@eslint/js": "9.39.4",
+    "@octokit/types": "16.0.0",
+    "@stylistic/eslint-plugin": "5.10.0",
+    "@types/node": "25.9.4",
+    "@typescript-eslint/eslint-plugin": "8.61.1",
+    "@typescript-eslint/parser": "8.61.1",
+    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/eslint-plugin": "1.6.20",
+    "esbuild": "0.28.1",
+    "eslint": "9.39.4",
+    "eslint-plugin-github": "6.0.0",
+    "eslint-plugin-prettier": "5.5.6",
+    "fast-check": "4.8.0",
+    "globals": "17.6.0",
+    "prettier": "3.8.4",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  },
+  "prettier": {
+    "arrowParens": "always",
+    "bracketSpacing": true,
+    "printWidth": 140,
+    "quoteProps": "consistent",
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5",
+    "useTabs": false
+  }
+}

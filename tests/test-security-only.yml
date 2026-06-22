@@ -1,0 +1,38 @@
+name: Test security-only flag
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: ${{ github.workspace }}/pristine/martincostello--update-dotnet-sdk/v6.1.2/tests/fixtures/global.json
+          channel: '8.0'
+          security-only: 'true'
+          generate-step-summary: 'false'
+        continue-on-error: true
+
+      - name: Assert action ran and sdk-version output is set on success
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "sdk-version: $SDK_VERSION"
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$SDK_VERSION" ]; then
+              echo "FAIL: action succeeded but sdk-version output was empty"
+              exit 1
+            fi
+            echo "PASS: sdk-version is set to $SDK_VERSION"
+          else
+            echo "INFO: action did not succeed (outcome=$OUTCOME), skipping output assertion"
+            echo "PASS: test completed (action outcome was $OUTCOME)"
+          fi

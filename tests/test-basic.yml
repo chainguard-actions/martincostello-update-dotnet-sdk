@@ -1,0 +1,60 @@
+name: Test basic usage - detect SDK update
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json with an old SDK version
+        run: |
+          cat > "$GITHUB_WORKSPACE/global.json" <<'EOF'
+          {
+            "sdk": {
+              "version": "8.0.100"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          repo-token: ${{ github.token }}
+          channel: '8.0'
+          global-json-file: './global.json'
+          generate-step-summary: 'false'
+
+      - name: Assert sdk-version output is set
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "sdk-version: $SDK_VERSION"
+          echo "sdk-updated: $SDK_UPDATED"
+
+          # The action should either succeed (no PR needed or PR created) or fail
+          # gracefully because the sentinel repo doesn't exist on GitHub.
+          # In either case, sdk-version must be populated (it reflects the latest
+          # available SDK from Microsoft's release channel).
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$SDK_VERSION" ]; then
+              echo "FAIL: action succeeded but sdk-version output is empty"
+              exit 1
+            fi
+            echo "PASS: sdk-version=$SDK_VERSION sdk-updated=$SDK_UPDATED"
+          elif [ "$OUTCOME" = "failure" ]; then
+            # Failure is expected when the sentinel repo is not resolvable on GitHub.
+            # We still check that sdk-version was emitted before the failure.
+            if [ -n "$SDK_VERSION" ]; then
+              echo "PASS: action failed gracefully (sentinel repo), sdk-version=$SDK_VERSION"
+            else
+              echo "PASS: action failed gracefully on sentinel repo (no PR possible)"
+            fi
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

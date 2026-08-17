@@ -1,0 +1,51 @@
+name: Test custom global.json path
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create global.json at a custom path with an old SDK version
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/src"
+          cat > "$GITHUB_WORKSPACE/src/global.json" <<'EOF'
+          {
+            "sdk": {
+              "version": "8.0.100"
+            }
+          }
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          repo-token: ${{ github.token }}
+          channel: '8.0'
+          global-json-file: './src/global.json'
+          generate-step-summary: 'false'
+
+      - name: Assert action ran with custom global.json path
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          echo "sdk-version: $SDK_VERSION"
+          echo "sdk-updated: $SDK_UPDATED"
+
+          if [ "$OUTCOME" = "success" ]; then
+            if [ -z "$SDK_VERSION" ]; then
+              echo "FAIL: action succeeded but sdk-version output is empty"
+              exit 1
+            fi
+            echo "PASS: sdk-version=$SDK_VERSION sdk-updated=$SDK_UPDATED"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

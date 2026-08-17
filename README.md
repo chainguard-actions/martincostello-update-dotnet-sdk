@@ -14,6 +14,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v6.1.0 | [`v6.1.0`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v6.1.0) | [`65c17eb`](https://github.com/martincostello/update-dotnet-sdk/commit/65c17eb6cecd15acfc1be78fffc0456add88690d) |
 | v6.1.1 | [`v6.1.1`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v6.1.1) | [`1314013`](https://github.com/martincostello/update-dotnet-sdk/commit/13140139e28b28d1f5d8924472a297e30e020a10) |
 | v6.1.2 | [`v6.1.2`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v6.1.2) | [`46a7493`](https://github.com/martincostello/update-dotnet-sdk/commit/46a749340f1074b411229cc31dde7a3678d70b23) |
+| v6.1.3 | [`v6.1.3`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v6.1.3) | [`abd8862`](https://github.com/martincostello/update-dotnet-sdk/commit/abd8862698d4748a3b545405b4ea3f1cdc66b2ca) |
 
 ## Privacy
 

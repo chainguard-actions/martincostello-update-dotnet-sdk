@@ -7,20 +7,31 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create global.json at a custom path with the latest 2.1 SDK version (EOL, frozen)
+      - name: Fetch latest SDK version for channel 8.0
+        id: fetch-latest
+        run: |
+          # Fetch from the same URL the action uses
+          RELEASES=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json")
+          LATEST=$(echo "$RELEASES" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['latest-sdk'])")
+          echo "latest=$LATEST"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+
+      - name: Create global.json at custom path with latest SDK version
+        env:
+          LATEST: ${{ steps.fetch-latest.outputs.latest }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/src"
-          printf '{"sdk":{"version":"2.1.818","rollForward":"latestFeature"}}' > "$GITHUB_WORKSPACE/src/global.json"
+          printf '{"sdk":{"version":"%s","rollForward":"latestPatch"}}\n' "$LATEST" > "$GITHUB_WORKSPACE/src/global.json"
+          echo "Created global.json at src/global.json with version: $LATEST"
+          cat "$GITHUB_WORKSPACE/src/global.json"
 
       - id: action
         uses: .
         with:
           repo-token: ${{ github.token }}
           global-json-file: ./src/global.json
-          channel: '2.1'
+          channel: '8.0'
           generate-step-summary: 'false'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Assert sdk-version output is set
         env:
@@ -28,29 +39,30 @@ jobs:
         run: |
           echo "sdk-version: $SDK_VERSION"
           if [ -z "$SDK_VERSION" ]; then
-            echo "FAIL: expected sdk-version to be non-empty"
+            echo "FAIL: sdk-version output is empty"
             exit 1
           fi
-          echo "PASS: sdk-version=$SDK_VERSION"
+          echo "PASS: sdk-version is '$SDK_VERSION'"
 
-      - name: Assert sdk-updated output is a boolean string
-        env:
-          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
-        run: |
-          echo "sdk-updated: $SDK_UPDATED"
-          if [ "$SDK_UPDATED" != "true" ] && [ "$SDK_UPDATED" != "false" ]; then
-            echo "FAIL: expected sdk-updated to be 'true' or 'false', got '$SDK_UPDATED'"
-            exit 1
-          fi
-          echo "PASS: sdk-updated=$SDK_UPDATED"
-
-      - name: Assert sdk-updated is false (2.1.818 is the final EOL version)
+      - name: Assert sdk-updated is false (already on latest)
         env:
           SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
         run: |
           echo "sdk-updated: $SDK_UPDATED"
           if [ "$SDK_UPDATED" != "false" ]; then
-            echo "FAIL: expected sdk-updated to be 'false' since 2.1.818 is the final EOL version"
+            echo "FAIL: expected sdk-updated=false but got '$SDK_UPDATED'"
             exit 1
           fi
-          echo "PASS: sdk-updated=false"
+          echo "PASS: sdk-updated is false as expected"
+
+      - name: Assert global.json still has the correct version
+        env:
+          LATEST: ${{ steps.fetch-latest.outputs.latest }}
+        run: |
+          CONTENT=$(cat "$GITHUB_WORKSPACE/src/global.json")
+          echo "global.json content: $CONTENT"
+          if ! echo "$CONTENT" | grep -q "$LATEST"; then
+            echo "FAIL: global.json does not contain version '$LATEST'"
+            exit 1
+          fi
+          echo "PASS: global.json contains version '$LATEST'"

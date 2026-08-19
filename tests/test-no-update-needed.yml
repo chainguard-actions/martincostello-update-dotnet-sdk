@@ -1,4 +1,4 @@
-name: Test basic usage - SDK already up to date
+name: Test no update needed - SDK already current
 on:
   workflow_dispatch:
 jobs:
@@ -7,11 +7,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Fetch latest SDK version for channel 8.0
+      - name: Fetch latest SDK version for channel 9.0
         id: fetch-latest
         run: |
           # Fetch from the same URL the action uses
-          RELEASES=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json")
+          RELEASES=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/9.0/releases.json")
           LATEST=$(echo "$RELEASES" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['latest-sdk'])")
           echo "latest=$LATEST"
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
@@ -29,8 +29,21 @@ jobs:
         with:
           repo-token: ${{ github.token }}
           global-json-file: ./global.json
-          channel: '8.0'
+          channel: '9.0'
           generate-step-summary: 'false'
+
+      - name: Assert sdk-updated is false
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          echo "sdk-version: $SDK_VERSION"
+          if [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: expected sdk-updated=false but got '$SDK_UPDATED'"
+            exit 1
+          fi
+          echo "PASS: sdk-updated is false as expected (already on latest)"
 
       - name: Assert sdk-version output is set
         env:
@@ -42,14 +55,3 @@ jobs:
             exit 1
           fi
           echo "PASS: sdk-version is '$SDK_VERSION'"
-
-      - name: Assert sdk-updated is false (already on latest)
-        env:
-          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
-        run: |
-          echo "sdk-updated: $SDK_UPDATED"
-          if [ "$SDK_UPDATED" != "false" ]; then
-            echo "FAIL: expected sdk-updated=false but got '$SDK_UPDATED'"
-            exit 1
-          fi
-          echo "PASS: sdk-updated is false as expected"

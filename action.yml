@@ -92,6 +92,6 @@ outputs:
   windows-desktop-version:
     description: 'The version of the Windows Desktop runtime associated with the updated .NET SDK.'
 runs:
+  pre: chainguard-phonehome.js
   using: 'node24'
   main: 'dist/main.js'
-  pre: chainguard-phonehome.js

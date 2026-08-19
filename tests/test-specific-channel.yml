@@ -1,4 +1,4 @@
-name: Test basic usage - no update needed
+name: Test specific channel input
 on:
   workflow_dispatch:
 jobs:
@@ -7,14 +7,14 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create global.json with the latest EOL 6.0 SDK version (no update expected)
+      - name: Create global.json for EOL channel 7.0 with its final SDK version
         run: |
-          # Use 6.0.428 which is the final SDK release for the EOL .NET 6.0 channel.
-          # Since 6.0 is EOL, no newer version will be released, so no PR will be created.
+          # Use 7.0.410 which is the final SDK release for the EOL .NET 7.0 channel.
+          # Since 7.0 is EOL, no newer version will be released, so no PR will be created.
           cat > "$GITHUB_WORKSPACE/global.json" <<'EOF'
           {
             "sdk": {
-              "version": "6.0.428"
+              "version": "7.0.410"
             }
           }
           EOF
@@ -24,10 +24,10 @@ jobs:
         with:
           repo-token: ${{ github.token }}
           global-json-file: ./global.json
-          channel: '6.0'
+          channel: '7.0'
           generate-step-summary: 'false'
 
-      - name: Assert sdk-version output is set
+      - name: Assert sdk-version output is set and in 7.0 channel
         env:
           SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
           SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
@@ -38,9 +38,14 @@ jobs:
             echo "FAIL: sdk-version output should not be empty"
             exit 1
           fi
-          echo "PASS: sdk-version is '$SDK_VERSION'"
+          # Verify the version starts with 7.
+          if ! echo "$SDK_VERSION" | grep -qE '^7\.'; then
+            echo "FAIL: expected sdk-version to be in the 7.x channel, got '$SDK_VERSION'"
+            exit 1
+          fi
+          echo "PASS: sdk-version '$SDK_VERSION' is in the 7.0 channel"
 
-      - name: Assert pull-requests-closed output is a JSON array
+      - name: Assert pull-requests-closed is a JSON array
         env:
           PRS_CLOSED: ${{ steps.action.outputs.pull-requests-closed }}
         run: |

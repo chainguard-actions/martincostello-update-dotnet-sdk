@@ -8,6 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
+| v5 | [`v5`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v5) | [`fb6d418`](https://github.com/martincostello/update-dotnet-sdk/commit/fb6d4182e67895769ed694cbefe95df25fa58cd7) |
 | v5.0.2 | [`v5.0.2`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v5.0.2) | [`7f7b459`](https://github.com/martincostello/update-dotnet-sdk/commit/7f7b459c48652a0e24f154bbe6dc16a5c7409b1b) |
 | v5.0.4 | [`v5.0.4`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v5.0.4) | [`fb6d418`](https://github.com/martincostello/update-dotnet-sdk/commit/fb6d4182e67895769ed694cbefe95df25fa58cd7) |
 | v6 | [`v6`](https://github.com/chainguard-actions/martincostello-update-dotnet-sdk/tree/v6) | [`abd8862`](https://github.com/martincostello/update-dotnet-sdk/commit/abd8862698d4748a3b545405b4ea3f1cdc66b2ca) |

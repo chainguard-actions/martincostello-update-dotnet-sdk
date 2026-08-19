@@ -1,4 +1,4 @@
-name: Test basic usage - SDK update check
+name: Test channel input - .NET 9.0
 on:
   workflow_dispatch:
 jobs:
@@ -7,10 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create global.json with the latest SDK version for channel 8.0
+      - name: Create global.json with the latest SDK version for channel 9.0
         run: |
-          LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['latest-sdk'])")
-          echo "Latest SDK version for 8.0: $LATEST"
+          LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/9.0/releases.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['latest-sdk'])")
+          echo "Latest SDK version for 9.0: $LATEST"
           if [ -z "$LATEST" ]; then
             echo "FAIL: could not determine latest SDK version"
             exit 1
@@ -30,16 +30,20 @@ jobs:
         with:
           repo-token: ${{ github.token }}
           global-json-file: ./global.json
-          channel: '8.0'
+          channel: '9.0'
           generate-step-summary: 'false'
 
-      - name: Assert sdk-version output is set
+      - name: Assert sdk-version output is set for channel 9.0
         env:
           SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
         run: |
           echo "sdk-version: $SDK_VERSION"
           if [ -z "$SDK_VERSION" ]; then
-            echo "FAIL: sdk-version output is empty"
+            echo "FAIL: sdk-version output is empty for channel 9.0"
+            exit 1
+          fi
+          if ! echo "$SDK_VERSION" | grep -qE '^9\.'; then
+            echo "FAIL: expected sdk-version to start with '9.' but got '$SDK_VERSION'"
             exit 1
           fi
           echo "PASS: sdk-version=$SDK_VERSION"

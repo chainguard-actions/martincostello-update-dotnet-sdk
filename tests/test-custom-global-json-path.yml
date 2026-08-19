@@ -1,4 +1,4 @@
-name: Test basic usage - SDK update check
+name: Test custom global-json-file path
 on:
   workflow_dispatch:
 jobs:
@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create global.json with the latest SDK version for channel 8.0
+      - name: Create global.json at custom path with the latest SDK version for channel 8.0
         run: |
           LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['latest-sdk'])")
           echo "Latest SDK version for 8.0: $LATEST"
@@ -15,7 +15,8 @@ jobs:
             echo "FAIL: could not determine latest SDK version"
             exit 1
           fi
-          cat > "$GITHUB_WORKSPACE/global.json" <<EOF
+          mkdir -p "$GITHUB_WORKSPACE/src"
+          cat > "$GITHUB_WORKSPACE/src/global.json" <<EOF
           {
             "sdk": {
               "version": "$LATEST",
@@ -23,13 +24,13 @@ jobs:
             }
           }
           EOF
-          echo "Created global.json with version $LATEST"
+          echo "Created src/global.json with version $LATEST"
 
       - id: action
         uses: .
         with:
           repo-token: ${{ github.token }}
-          global-json-file: ./global.json
+          global-json-file: ./src/global.json
           channel: '8.0'
           generate-step-summary: 'false'
 
@@ -40,6 +41,10 @@ jobs:
           echo "sdk-version: $SDK_VERSION"
           if [ -z "$SDK_VERSION" ]; then
             echo "FAIL: sdk-version output is empty"
+            exit 1
+          fi
+          if ! echo "$SDK_VERSION" | grep -qE '^8\.'; then
+            echo "FAIL: expected sdk-version to start with '8.' but got '$SDK_VERSION'"
             exit 1
           fi
           echo "PASS: sdk-version=$SDK_VERSION"

@@ -1,0 +1,53 @@
+name: update-dotnet-sdk-test
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  update-sdk:
+    uses: ./.github/workflows/update-dotnet-sdk.yml
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      global-json-file: './_global.json'
+      labels: dependencies
+      # renovate: datasource=github-runners depType=github-runner
+      runs-on: ubuntu-24.04
+      update-nuget-packages: false
+    secrets:
+      repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  print-outputs:
+    name: Print outcome
+    needs: update-sdk
+    runs-on: ubuntu-24.04
+
+    steps:
+
+    - name: Print update details
+      shell: bash
+      env:
+        SDK_UPDATED: ${{ needs.update-sdk.outputs.sdk-updated }}
+        SDK_VERSION: ${{ needs.update-sdk.outputs.sdk-version }}
+        RUNTIME_VERSION: ${{ needs.update-sdk.outputs.runtime-version }}
+        ASPNETCORE_VERSION: ${{ needs.update-sdk.outputs.aspnetcore-version }}
+        WINDOWS_DESKTOP_VERSION: ${{ needs.update-sdk.outputs.windows-desktop-version }}
+        SECURITY: ${{ needs.update-sdk.outputs.security }}
+        BRANCH_NAME: ${{ needs.update-sdk.outputs.branch-name }}
+        PULL_REQUEST_NUMBER: ${{ needs.update-sdk.outputs.pull-request-number }}
+        PULL_REQUEST_HTML_URL: ${{ needs.update-sdk.outputs.pull-request-html-url }}
+        PULL_REQUESTS_CLOSED: ${{ needs.update-sdk.outputs.pull-requests-closed }}
+      run: |
+        echo "SDK updated: ${SDK_UPDATED}"
+        echo "SDK version: ${SDK_VERSION}"
+        echo "Runtime version: ${RUNTIME_VERSION}"
+        echo "ASP.NET Core version: ${ASPNETCORE_VERSION}"
+        echo "Windows Desktop version: ${WINDOWS_DESKTOP_VERSION}"
+        echo "Security: ${SECURITY}"
+        echo "Branch name: ${BRANCH_NAME}"
+        echo "PR number: ${PULL_REQUEST_NUMBER}"
+        echo "PR URL: ${PULL_REQUEST_HTML_URL}"
+        echo "PR(s) closed: ${PULL_REQUESTS_CLOSED}"

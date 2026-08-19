@@ -1,4 +1,4 @@
-name: Test custom commit message and user options (dry-run)
+name: Test security-only mode (dry-run)
 on:
   workflow_dispatch:
 jobs:
@@ -9,7 +9,7 @@ jobs:
 
       - name: Create test global.json in workspace root
         run: |
-          cat > "$GITHUB_WORKSPACE/test-global-custom.json" << 'EOF'
+          cat > "$GITHUB_WORKSPACE/test-global-security.json" << 'EOF'
           {
             "sdk": {
               "version": "8.0.421",
@@ -22,17 +22,11 @@ jobs:
         uses: .
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          global-json-file: ./test-global-custom.json
+          global-json-file: ./test-global-security.json
           channel: '8.0'
+          security-only: 'true'
           dry-run: 'true'
           generate-step-summary: 'false'
-          commit-message: 'chore: update .NET SDK'
-          commit-message-prefix: '[bot]'
-          user-name: 'test-bot'
-          user-email: 'test-bot@example.com'
-          branch-name: 'update-dotnet-sdk-test'
-          labels: 'dependencies,dotnet'
-          close-superseded: 'false'
 
       - name: Assert sdk-version output is set
         env:
@@ -55,3 +49,16 @@ jobs:
             exit 1
           fi
           echo "PASS: sdk-updated is '$SDK_UPDATED'"
+
+      - name: Assert security output is valid
+        env:
+          SECURITY: ${{ steps.action.outputs.security }}
+        run: |
+          echo "security: '$SECURITY'"
+          # security output is 'true', 'false', or empty (when no update was applied)
+          if [ "$SECURITY" = "true" ] || [ "$SECURITY" = "false" ] || [ -z "$SECURITY" ]; then
+            echo "PASS: security output is '$SECURITY'"
+          else
+            echo "FAIL: security output should be 'true', 'false', or empty, got '$SECURITY'"
+            exit 1
+          fi

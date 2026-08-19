@@ -1,0 +1,62 @@
+name: Test - Channel Specific SDK Query
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Get latest .NET 9.0 SDK version
+        id: get-sdk
+        run: |
+          LATEST=$(curl -s https://raw.githubusercontent.com/dotnet/core/main/release-notes/9.0/releases.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['latest-sdk'])")
+          echo "Latest 9.0 SDK: $LATEST"
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+
+      - name: Create global.json for channel 9.0
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-workspace-channel"
+          cat > "$GITHUB_WORKSPACE/test-workspace-channel/global.json" <<EOF
+          {
+            "sdk": {
+              "version": "${{ steps.get-sdk.outputs.version }}"
+            }
+          }
+          EOF
+          echo "Created global.json with version ${{ steps.get-sdk.outputs.version }}"
+          cat "$GITHUB_WORKSPACE/test-workspace-channel/global.json"
+
+      - id: action
+        uses: .
+        with:
+          repo-token: ${{ github.token }}
+          global-json-file: ${{ github.workspace }}/test-workspace-channel/global.json
+          channel: '9.0'
+          generate-step-summary: 'false'
+
+      - name: Assert sdk-version starts with 9.0
+        env:
+          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+        run: |
+          echo "sdk-version: $SDK_VERSION"
+          if [ -z "$SDK_VERSION" ]; then
+            echo "FAIL: sdk-version output is empty"
+            exit 1
+          fi
+          if ! echo "$SDK_VERSION" | grep -qE '^9\.0\.'; then
+            echo "FAIL: expected sdk-version to start with '9.0.', got '$SDK_VERSION'"
+            exit 1
+          fi
+          echo "PASS: sdk-version '$SDK_VERSION' is in the 9.0 channel"
+
+      - name: Assert sdk-updated is false (no update needed)
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: sdk-updated should be 'false' when using the latest version, got '$SDK_UPDATED'"
+            exit 1
+          fi
+          echo "PASS: sdk-updated is 'false' as expected"

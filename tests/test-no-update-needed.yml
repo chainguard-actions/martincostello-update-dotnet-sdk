@@ -1,4 +1,4 @@
-name: Test - Security Only Flag
+name: Test - No Update Needed (SDK already current)
 on:
   workflow_dispatch:
 jobs:
@@ -14,10 +14,10 @@ jobs:
           echo "Latest 8.0 SDK: $LATEST"
           echo "version=$LATEST" >> "$GITHUB_OUTPUT"
 
-      - name: Create global.json for channel 8.0
+      - name: Create global.json with latest SDK version
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/test-workspace-security"
-          cat > "$GITHUB_WORKSPACE/test-workspace-security/global.json" <<EOF
+          mkdir -p "$GITHUB_WORKSPACE/test-workspace-noupdate"
+          cat > "$GITHUB_WORKSPACE/test-workspace-noupdate/global.json" <<EOF
           {
             "sdk": {
               "version": "${{ steps.get-sdk.outputs.version }}"
@@ -25,48 +25,36 @@ jobs:
           }
           EOF
           echo "Created global.json with version ${{ steps.get-sdk.outputs.version }}"
-          cat "$GITHUB_WORKSPACE/test-workspace-security/global.json"
+          cat "$GITHUB_WORKSPACE/test-workspace-noupdate/global.json"
 
       - id: action
         uses: .
         with:
           repo-token: ${{ github.token }}
-          global-json-file: ${{ github.workspace }}/test-workspace-security/global.json
+          global-json-file: ${{ github.workspace }}/test-workspace-noupdate/global.json
           channel: '8.0'
-          security-only: 'true'
           generate-step-summary: 'false'
 
       - name: Assert sdk-version output is non-empty
         env:
           SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
         run: |
           echo "sdk-version: $SDK_VERSION"
+          echo "sdk-updated: $SDK_UPDATED"
           if [ -z "$SDK_VERSION" ]; then
             echo "FAIL: sdk-version output is empty"
             exit 1
           fi
           echo "PASS: sdk-version is '$SDK_VERSION'"
 
-      - name: Assert sdk-version starts with 8.0
-        env:
-          SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
-        run: |
-          echo "sdk-version: $SDK_VERSION"
-          if ! echo "$SDK_VERSION" | grep -qE '^8\.0\.'; then
-            echo "FAIL: expected sdk-version to start with '8.0.', got '$SDK_VERSION'"
-            exit 1
-          fi
-          echo "PASS: sdk-version '$SDK_VERSION' is in the 8.0 channel"
-
-      - name: Assert sdk-updated is false (no update needed with latest version)
+      - name: Assert sdk-updated is false (no update needed)
         env:
           SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
-          SECURITY: ${{ steps.action.outputs.security }}
         run: |
           echo "sdk-updated: $SDK_UPDATED"
-          echo "security: $SECURITY"
           if [ "$SDK_UPDATED" != "false" ]; then
             echo "FAIL: sdk-updated should be 'false' when using the latest version, got '$SDK_UPDATED'"
             exit 1
           fi
-          echo "PASS: sdk-updated is 'false', security is '$SECURITY'"
+          echo "PASS: sdk-updated is 'false' as expected"

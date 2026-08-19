@@ -1,0 +1,57 @@
+name: check-dist
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check-dist:
+    if: ${{ !contains(fromJSON('["dependabot[bot]", "renovate[bot]"]'), github.event.pull_request.user.login) }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          filter: 'tree:0'
+          persist-credentials: false
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '24.x'
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Rebuild the dist directory
+        run: npm run generate
+
+      - name: Compare the expected and actual dist directories
+        id: diff
+        run: |
+          if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
+            echo "::error::Detected uncommitted changes to dist."
+            echo "Detected uncommitted changes after build.  See status below:"
+            git diff
+            exit 1
+          fi
+
+      - name: Upload generated dist
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        if: failure() && steps.diff.conclusion == 'failure'
+        with:
+          name: dist
+          path: dist/

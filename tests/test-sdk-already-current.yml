@@ -1,4 +1,4 @@
-name: Test basic dry-run usage
+name: Test SDK already up to date
 on:
   workflow_dispatch:
 jobs:
@@ -9,17 +9,17 @@ jobs:
 
       - name: Fetch latest .NET 8 SDK version and write global.json
         run: |
-          # Fetch the latest SDK version so it is guaranteed to be in releases.json
+          # Fetch the latest release version from the same URL the action uses
           if command -v jq &>/dev/null; then
             LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json" | jq -r '."latest-sdk"')
           elif command -v python3 &>/dev/null; then
             LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['latest-sdk'])")
           fi
-          # Fall back to a known-good version if fetch failed
           if [ -z "$LATEST" ]; then
-            LATEST="8.0.419"
+            echo "FAIL: could not fetch latest SDK version"
+            exit 1
           fi
-          echo "Using SDK version: $LATEST"
+          echo "Latest SDK version: $LATEST"
           cat > ./global.json << EOF
           {
             "sdk": {
@@ -38,7 +38,18 @@ jobs:
           channel: '8.0'
           generate-step-summary: 'false'
 
-      - name: Assert sdk-version output is set
+      - name: Assert sdk-updated is false
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ "$SDK_UPDATED" != "false" ]; then
+            echo "FAIL: expected sdk-updated=false but got '$SDK_UPDATED'"
+            exit 1
+          fi
+          echo "PASS: sdk-updated=false as expected"
+
+      - name: Assert sdk-version is set
         env:
           SDK_VERSION: ${{ steps.action.outputs.sdk-version }}
         run: |
@@ -48,14 +59,3 @@ jobs:
             exit 1
           fi
           echo "PASS: sdk-version=$SDK_VERSION"
-
-      - name: Assert sdk-updated output is set
-        env:
-          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
-        run: |
-          echo "sdk-updated: $SDK_UPDATED"
-          if [ -z "$SDK_UPDATED" ]; then
-            echo "FAIL: expected sdk-updated output to be set"
-            exit 1
-          fi
-          echo "PASS: sdk-updated=$SDK_UPDATED"

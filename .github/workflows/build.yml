@@ -1,0 +1,144 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FORCE_COLOR: 1
+  # renovate: datasource=github-releases depName=powershell-yaml packageName=cloudbase/powershell-yaml
+  POWERSHELL_YAML_VERSION: '0.4.12'
+  # renovate: datasource=github-releases depName=PSScriptAnalyzer packageName=PowerShell/PSScriptAnalyzer
+  PSSCRIPTANALYZER_VERSION: '1.24.0'
+  # renovate: datasource=github-releases depName=zizmor packageName=zizmorcore/zizmor
+  ZIZMOR_VERSION: '1.23.1'
+
+permissions: {}
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            os-name: macos
+          - os: ubuntu-latest
+            os-name: linux
+          - os: windows-latest
+            os-name: windows
+
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        filter: 'tree:0'
+        persist-credentials: false
+        show-progress: false
+
+    - name: Setup Node
+      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      with:
+        node-version: '24.x'
+
+    - name: Install packages
+      run: npm ci
+
+    - name: Build and Test
+      shell: pwsh
+      run: ./build.ps1
+
+    - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      name: Upload coverage to Codecov
+      with:
+        flags: ${{ matrix.os-name }}
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
+      if: runner.os == 'Linux'
+      with:
+        artifact-name: update-dotnet-sdk.spdx.json
+        output-file: update-dotnet-sdk.spdx.json
+        path: .
+
+    - name: Attest dist
+      uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+      if: |
+        runner.os == 'Linux' &&
+        github.ref_name == github.event.repository.default_branch
+      with:
+        subject-path: ./dist/**/*.js
+
+  lint:
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        filter: 'tree:0'
+        persist-credentials: false
+        show-progress: false
+
+    - name: Add actionlint problem matcher
+      run: echo "::add-matcher::.github/actionlint-matcher.json"
+
+    - name: Lint workflows with actionlint
+      uses: docker://rhysd/actionlint:1.7.11@sha256:6f03470d0152251d7f07f7c4dc019dbe7024c72cd952f839544c7798843efa8f
+      with:
+        args: -color
+
+    - name: Lint workflows with zizmor
+      uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+      with:
+        persona: pedantic
+        version: ${{ env.ZIZMOR_VERSION }}
+
+    - name: Lint markdown
+      uses: DavidAnson/markdownlint-cli2-action@07035fd053f7be764496c0f8d8f9f41f98305101 # v22.0.0
+      with:
+        config: '.markdownlint.json'
+        globs: |
+          **/*.md
+
+    - name: Lint PowerShell in workflows
+      uses: martincostello/lint-actions-powershell@e088367ebeb113cd7c1ebee5c541175d93e945b7 # v1.0.1
+      with:
+        powershell-yaml-version: ${{ env.POWERSHELL_YAML_VERSION }}
+        psscriptanalyzer-version: ${{ env.PSSCRIPTANALYZER_VERSION }}
+        treat-warnings-as-errors: true
+
+    - name: Lint PowerShell scripts
+      shell: pwsh
+      run: |
+        $settings = @{
+          IncludeDefaultRules = $true
+          Severity = @("Error", "Warning")
+        }
+        $issues = Invoke-ScriptAnalyzer -Path ${env:GITHUB_WORKSPACE} -Recurse -ReportSummary -Settings $settings
+        foreach ($issue in $issues) {
+          $severity = $issue.Severity.ToString()
+          $level = $severity.Contains("Error") ? "error" : $severity.Contains("Warning") ? "warning" : "notice"
+          Write-Output "::${level} file=$($issue.ScriptName),line=$($issue.Line),title=PSScriptAnalyzer::$($issue.Message)"
+        }
+        if ($issues.Count -gt 0) {
+          exit 1
+        }

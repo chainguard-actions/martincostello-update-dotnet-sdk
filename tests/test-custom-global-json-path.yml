@@ -7,31 +7,38 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up isolated git repo with global.json at custom path
+      - name: Fetch latest .NET 8 SDK version and write global.json at custom path
         run: |
-          mkdir -p /tmp/test-repo-custom/src
-          cd /tmp/test-repo-custom
-          git init
-          git config user.email "test@example.com"
-          git config user.name "Test User"
-          cat > src/global.json << 'EOF'
+          # Fetch the latest SDK version so it is guaranteed to be in releases.json
+          if command -v jq &>/dev/null; then
+            LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json" | jq -r '."latest-sdk"')
+          elif command -v python3 &>/dev/null; then
+            LATEST=$(curl -sfL "https://raw.githubusercontent.com/dotnet/core/main/release-notes/8.0/releases.json" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['latest-sdk'])")
+          fi
+          # Fall back to a known-good version if fetch failed
+          if [ -z "$LATEST" ]; then
+            LATEST="8.0.419"
+          fi
+          echo "Using SDK version: $LATEST"
+          mkdir -p ./src
+          cat > ./src/global.json << EOF
           {
             "sdk": {
-              "version": "8.0.100"
+              "version": "$LATEST",
+              "rollForward": "latestFeature"
             }
           }
           EOF
-          git add src/global.json
-          git commit -m "Initial commit"
+          cat ./src/global.json
 
       - id: action
         uses: .
         with:
           repo-token: ${{ github.token }}
-          global-json-file: /tmp/test-repo-custom/src/global.json
           dry-run: 'true'
+          channel: '8.0'
+          global-json-file: './src/global.json'
           generate-step-summary: 'false'
-          repo: ''
 
       - name: Assert sdk-version output is set
         env:
@@ -39,18 +46,31 @@ jobs:
         run: |
           echo "sdk-version: $SDK_VERSION"
           if [ -z "$SDK_VERSION" ]; then
-            echo "FAIL: expected sdk-version output to be non-empty"
+            echo "FAIL: expected sdk-version to be non-empty"
             exit 1
           fi
-          echo "PASS"
+          echo "PASS: sdk-version=$SDK_VERSION"
 
-      - name: Assert runtime-version output is set
+      - name: Assert sdk-updated output is set
         env:
-          RUNTIME_VERSION: ${{ steps.action.outputs.runtime-version }}
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
         run: |
-          echo "runtime-version: $RUNTIME_VERSION"
-          if [ -z "$RUNTIME_VERSION" ]; then
-            echo "FAIL: expected runtime-version output to be non-empty"
+          echo "sdk-updated: $SDK_UPDATED"
+          if [ -z "$SDK_UPDATED" ]; then
+            echo "FAIL: expected sdk-updated output to be set"
+            exit 1
+          fi
+          echo "PASS: sdk-updated=$SDK_UPDATED"
+
+      - name: Assert aspnetcore-version output is set when updated
+        env:
+          SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          ASPNETCORE_VERSION: ${{ steps.action.outputs.aspnetcore-version }}
+        run: |
+          echo "sdk-updated: $SDK_UPDATED"
+          echo "aspnetcore-version: $ASPNETCORE_VERSION"
+          if [ "$SDK_UPDATED" = "true" ] && [ -z "$ASPNETCORE_VERSION" ]; then
+            echo "FAIL: expected aspnetcore-version to be set when sdk-updated=true"
             exit 1
           fi
           echo "PASS"

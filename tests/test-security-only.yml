@@ -1,4 +1,4 @@
-name: Test basic dry-run usage
+name: Test security-only mode
 on:
   workflow_dispatch:
 jobs:
@@ -36,6 +36,7 @@ jobs:
           repo-token: ${{ github.token }}
           dry-run: 'true'
           channel: '8.0'
+          security-only: 'true'
           generate-step-summary: 'false'
 
       - name: Assert sdk-version output is set
@@ -49,13 +50,20 @@ jobs:
           fi
           echo "PASS: sdk-version=$SDK_VERSION"
 
-      - name: Assert sdk-updated output is set
+      - name: Assert sdk-updated output is set (may be true or false depending on security releases)
         env:
           SDK_UPDATED: ${{ steps.action.outputs.sdk-updated }}
+          SECURITY: ${{ steps.action.outputs.security }}
         run: |
           echo "sdk-updated: $SDK_UPDATED"
+          echo "security: $SECURITY"
           if [ -z "$SDK_UPDATED" ]; then
             echo "FAIL: expected sdk-updated output to be set"
             exit 1
           fi
-          echo "PASS: sdk-updated=$SDK_UPDATED"
+          # If sdk-updated is true, security must also be true (security-only mode)
+          if [ "$SDK_UPDATED" = "true" ] && [ "$SECURITY" != "true" ]; then
+            echo "FAIL: security-only mode updated SDK but security output is not true"
+            exit 1
+          fi
+          echo "PASS"
